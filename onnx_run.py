@@ -1,9 +1,10 @@
-import time 
+import re
 import numpy as np
 from onnxruntime import InferenceSession
 import cv2
 import paddlex as pdx
 import six
+import sys
 
 
 # 'model/onnx_model/yolov3.onnx'
@@ -44,7 +45,6 @@ class OnnxPredictor():
                     clsid, score, xmin, ymin, xmax, ymax = dt.tolist()
                     catid = (clsid2catid[int(clsid)])
 
-                    
                     w = xmax - xmin + 1
                     h = ymax - ymin + 1
 
@@ -60,16 +60,16 @@ class OnnxPredictor():
         return xywh_res
 
     def _postprocess(self, res, batch_size, num_classes, labels):
-            clsid2catid = dict({i: i for i in range(num_classes)})
-            xywh_results = self.bbox2out([res], clsid2catid)
-            preds = [[] for i in range(batch_size)]
-            for xywh_res in xywh_results:
-                image_id = xywh_res['image_id']
-                del xywh_res['image_id']
-                xywh_res['category'] = labels[xywh_res['category_id']]
-                preds[image_id].append(xywh_res)
+        clsid2catid = dict({i: i for i in range(num_classes)})
+        xywh_results = self.bbox2out([res], clsid2catid)
+        preds = [[] for i in range(batch_size)]
+        for xywh_res in xywh_results:
+            image_id = xywh_res['image_id']
+            del xywh_res['image_id']
+            xywh_res['category'] = labels[xywh_res['category_id']]
+            preds[image_id].append(xywh_res)
 
-            return preds
+        return preds
 
     def postprocess(self, results,
                     batch_size=1):
@@ -90,28 +90,29 @@ class OnnxPredictor():
             ]
             return [lengths]
 
-        
         res = {'bbox': (results[0][0], offset_to_lengths(results[0][1])), }
         res['im_id'] = (np.array(
             [[i] for i in range(batch_size)]).astype('int32'), [[]])
         preds = self._postprocess(res, batch_size, 1,
-                                    ['drill'])
-            
-        
-        return preds[0]
-    
-    def predict(self, img):
-        img = cv2.resize(img,(608,608))
-        img = np.array(img).astype('float32')
-        img2 = np.array([img/255]).transpose(0,3,1,2).astype('float32')
-        output_names = [output.name for output in self.session.get_outputs()]
-        ort_outs = self.session.run(output_names=output_names, input_feed={'im_shape':np.array([[608,608]], dtype=np.float32), 'image': img2, 'scale_factor': np.array([[1,1]], dtype=np.float32)})
+                                  ['drill'])
 
-        preds = self.postprocess([[ort_outs[0],[[0,ort_outs[0].shape[0]]]]])
+        return preds[0]
+
+    def predict(self, img):
+        img = cv2.resize(img, (608, 608))
+        img = np.array(img).astype('float32')
+        img2 = np.array([img / 255]).transpose(0, 3, 1, 2).astype('float32')
+        output_names = [output.name for output in self.session.get_outputs()]
+        ort_outs = self.session.run(output_names=output_names,
+                                    input_feed={'im_shape': np.array([[608, 608]], dtype=np.float32), 'image': img2,
+                                                'scale_factor': np.array([[1, 1]], dtype=np.float32)})
+
+        preds = self.postprocess([[ort_outs[0], [[0, ort_outs[0].shape[0]]]]])
 
         return preds
 
-# 'model/onnx_model/yolov3.onnx'
+
+# 'model/onnx_model/yolotiny.onnx'
 class TinyOnnxPredictor():
     def __init__(self, model_dir):
         self.session = InferenceSession(model_dir)
@@ -207,68 +208,70 @@ class TinyOnnxPredictor():
 
             Args:
                 results (list): 预测结果
+
+            net_outputs 格式化成
+            {'bbox': array([[  0.        ,   0.99239385,  45.481773  , 222.07161   ,
+            280.89655   , 367.0476    ]], dtype=float32), 'bbox_num': array([1])}
         """
+        # print(results)
         net_outputs = {
-                'bbox': results[0][0],
-                'bbox_num': np.array([results[0][0].shape[0]])
-            }
+            'bbox': results[0],
+            'bbox_num': results[1]
+        }
         # print(net_outputs)
         preds = self._postprocess(net_outputs)
         if len(preds) == 1:
-                preds = preds[0]
+            preds = preds[0]
 
         return preds
-    
+
+    def preprocess(self, img):
+        """
+        img 输入 shape [h,w,c],bgr
+        resize INTER_CUBIC + normalize
+        img 输出 shape [1,3,608,608]
+        """
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (608, 608), interpolation=cv2.INTER_CUBIC)
+        img = np.array(img).astype('float32')
+        img = np.array([img / 255])
+
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+        img = (img - mean) / std
+        img = img.transpose(0, 3, 1, 2).astype('float32')
+
+        return img
+
     def predict(self, img):
-        img = cv2.resize(img,(608,608))
-        # img = np.array(img).astype('float32')
-        img2 = np.array([img]).transpose(0,3,1,2).astype('float32')
+        """
+        net_outputs, ort_outs
+        [array([[  0.        ,   0.99239385,  45.481773  , 222.07161   ,
+        280.89655   , 367.0476    ]], dtype=float32), array([1])]
+        """
+        img = self.preprocess(img)
+        # print(img)
         output_names = [output.name for output in self.session.get_outputs()]
-        ort_outs = self.session.run(output_names=output_names, input_feed={'im_shape':np.array([[608,608]], dtype=np.float32), 'image': img2, 'scale_factor': np.array([[1,1]], dtype=np.float32)})
+        input_feed = {'im_shape': np.array([[608, 608]], dtype=np.float32), 'image': img,
+                      'scale_factor': np.array([[0.56296295,0.31666666]], dtype=np.float32)}
+
+        ort_outs = self.session.run(output_names=output_names, input_feed=input_feed)
+
+        ort_outs[1] = np.array([ort_outs[0].shape[0]], dtype=np.int32)
         # print(ort_outs)
-        preds = self.postprocess([[ort_outs[0],[[0,ort_outs[0].shape[0]]]]])
+
+        preds = self.postprocess(ort_outs)
 
         return preds
+
 
 if __name__ == '__main__':
-    preditor = TinyOnnxPredictor('model/onnx_model/yolotiny.onnx')
-
-    preditor.get_io_name()
-
     img = cv2.imread('20211117103812.jpg')
 
+    # predictor = TinyOnnxPredictor('model/onnx_model/yolotiny.onnx')
+    predictor = pdx.deploy.Predictor('./model/infer_tiny_model/inference_model')
 
+    preds = predictor.predict(img)
+    print('bbox_num: {}'.format(len(preds)))
+    print(preds)
 
-    # predictor2 = pdx.deploy.Predictor('./model/infer_tiny_model')
-
-    x1 = time.time()
-    print(preditor.predict(img))
-    # print(predictor2.predict(img))
-    x2 = time.time()
-    print(x2-x1)
-    # print(input_names)
-    # print(output_names)
-
-    '''
-    [{'category_id': 0, 'category': 'drill', 
-    'bbox': [215.66433715820312, 410.9061584472656, 684.1917419433594, 256.0635681152344], 
-    'score': 0.804372251033783}, 
-    {'category_id': 0, 'category': 'drill', 
-    'bbox': [438.6444091796875, 367.3341979980469, 624.6326904296875, 236.94180297851562], 
-    'score': 0.04904673993587494}, 
-    {'category_id': 0, 'category': 'drill', 
-    'bbox': [580.9302978515625, 384.5379943847656, 307.218994140625, 120.27001953125], 
-    'score': 0.036249738186597824}, 
-    {'category_id': 0, 'category': 'drill', 
-    'bbox': [58.9052734375, 351.2942810058594, 1196.2515869140625, 378.3089904785156], 
-    'score': 0.026698026806116104}, 
-    {'category_id': 0, 'category': 'drill', 
-    'bbox': [33.044830322265625, 362.7183532714844, 617.3655700683594, 224.98110961914062], 
-    'score': 0.02356852777302265}, 
-    {'category_id': 0, 'category': 'drill', 
-    'bbox': [850.13720703125, 312.94122314453125, 616.672119140625, 226.94677734375], 
-    'score': 0.012034815736114979}, 
-    {'category_id': 0, 'category': 'drill', 
-    'bbox': [674.76171875, 370.36248779296875, 245.9744873046875, 96.3062744140625], 
-    'score': 0.006974441464990377}]
-    '''

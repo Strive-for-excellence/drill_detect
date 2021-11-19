@@ -92,7 +92,7 @@ def classify_process():
                     # print('4')
                     in_place = {'category_id': 0, 'bbox': [0, 0, 0, 0], 'score': 0, 'category': 'drill'}
                     if len(res) > 0:
-                        print('5')
+                        # print('5')
                         res_t.append(res[0])
                     else:
                         res_t.append(in_place)
