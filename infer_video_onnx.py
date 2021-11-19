@@ -7,7 +7,7 @@ import os
 # import pandas
 from  matplotlib import pyplot,rcParams
 import shutil
-from onnx_run import OnnxPredictor
+from onnx_run import OnnxPredictor,TinyOnnxPredictor
 from scipy import signal
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -19,6 +19,7 @@ print("* Loading model...")
 # predictor = pdx.deploy.Predictor('./model/quant_inference_model')
 # predictor = OnnxPredictor('model/onnx_model/yolov3.onnx')
 predictor = OnnxPredictor('model/onnx_model/yolotiny.onnx')
+predictor = TinyOnnxPredictor('model/onnx_model/yolotiny.onnx')
 print("* Model loaded")
 def signal_process(length_list, fast_foward_speed=1.0):
     # 峰值和谷值的阈值
@@ -76,19 +77,19 @@ def classify_process():
             if not ret:
                 print("ERROR GRAB FRAME")
                 break
-            print('1')
+            # print('1')
             if i % (fps * fast_foward_speed) == 0:
                 ret, frame = cap.retrieve()
-                print('2')
+                # print('2')
                 if ret:
-                    print('3')
+                    # print('3')
                     T1 = time.time()
                     new_frame = cv2.resize(frame,dsize=(1920,1080))
                     res = predictor.predict(new_frame)
                     T2 = time.time()
                     # print('程序运行时间:%s秒' % ((T2 - T1) ))
                     # print(res)
-                    print('4')
+                    # print('4')
                     in_place = {'category_id': 0, 'bbox': [0, 0, 0, 0], 'score': 0, 'category': 'drill'}
                     if len(res) > 0:
                         print('5')

@@ -15,7 +15,7 @@ rcParams['font.family']='SimHei'
 # 导入模型
 print("* Loading model...")
 # predictor = pdx.deploy.Predictor('./model/inference_model_pdx2_tiny',use_gpu=False)
-predictor = pdx.deploy.Predictor('./model/inference_model_pdx2',use_gpu=False)
+predictor = pdx.deploy.Predictor('./model/inference_model_pdx2/inference_model',use_gpu=False)
 
 # predictor = pdx.deploy.Predictor('./model/inference_model',use_gpu=False)
 # predictor = pdx.deploy.Predictor('./model/quant_inference_model')
@@ -92,10 +92,11 @@ def classify_process():
                     # T2 = time.time()
                     # print('程序运行时间:%s秒' % ((T2 - T1) ))
                     # print(res)
+                    in_place = {'category_id': 0, 'bbox': [0, 0, 0, 0], 'score': 0, 'category': 'drill'}
                     if len(res) > 0:
                         res_t.append(res[0])
                     else:
-                        break
+                        res_t.append(in_place)
                 else:
                     print("ERROR RETRIEVE FRAME")
                     break
