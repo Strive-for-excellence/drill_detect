@@ -15,7 +15,7 @@ rcParams['font.family']='SimHei'
 # 导入模型
 print("* Loading model...")
 # predictor = pdx.deploy.Predictor('./model/inference_model_pdx2_tiny',use_gpu=False)
-predictor = pdx.deploy.Predictor('./model/inference_model_pdx_tiny2.0',use_gpu=False)
+predictor = pdx.deploy.Predictor('./model/inference_model_pdx2',use_gpu=False)
 
 # predictor = pdx.deploy.Predictor('./model/inference_model',use_gpu=False)
 # predictor = pdx.deploy.Predictor('./model/quant_inference_model')
@@ -84,12 +84,12 @@ def classify_process():
                     T1 = time.time()
                     new_frame = cv2.resize(frame,dsize=(1920,1080))
                     res = predictor.predict(new_frame)
-                    save_path = 'img_output/'+str(i)+'.jpg'
-                    print('basename' + os.path.abspath(save_path))
-                    cv2.imwrite(save_path,frame)
+                    # save_path = 'img_output/'+str(i)+'.jpg'
+                    # print('basename' + os.path.abspath(save_path))
+                    # cv2.imwrite(save_path,frame)
                     # break
-                    pdx.det.visualize(save_path, res, threshold=0.3, save_dir='./output')
-                    T2 = time.time()
+                    # pdx.det.visualize(save_path, res, threshold=0.3, save_dir='./output')
+                    # T2 = time.time()
                     # print('程序运行时间:%s秒' % ((T2 - T1) ))
                     # print(res)
                     if len(res) > 0:
@@ -126,7 +126,7 @@ def classify_process():
             f.write('更换钻头次数: '+ str(drill_num)+"\n")
             f.write('更换钻头时间: ')
             for item in end_location:
-                f.write(time.strftime("%H时%M分",time.gmtime(item*fast_foward_speed))+" ")
+                f.write(time.strftime("%H:%M",time.gmtime(item*fast_foward_speed))+" ")
             f.write("\n")
         # 画图
         pyplot.plot(x_vals,drill_length)

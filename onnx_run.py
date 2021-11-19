@@ -114,7 +114,7 @@ if __name__ == '__main__':
 
     preditor.get_io_name()
 
-    img = cv2.imread('20211117103812.jpg')
+    img = cv2.imread('test.jpg')
 
     x1 = time.time()
     print(preditor.predict(img))
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     # print(input_names)
     # print(output_names)
 
-    '''
+'''
 
 
 '''
